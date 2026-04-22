@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Default: Deny all ───
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── Users: only own document ───
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'email', 'createdAt']);
+      allow delete: if false;
+
+      // ─── Chat History: subcollection under user ───
+      match /chatHistory/{messageId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.keys().hasAll(['role', 'content', 'timestamp'])
+          && request.resource.data.role in ['user', 'model']
+          && request.resource.data.content is string
+          && request.resource.data.content.size() <= 2000;
+        allow update, delete: if false;
+      }
+    }
+
+    // ─── Public Collections: read-only ───
+    match /faqs/{docId} {
+      allow read: if true;
+      allow write: if false; // Admin-only via seed scripts
+    }
+
+    match /journeySteps/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /timelinePhases/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
