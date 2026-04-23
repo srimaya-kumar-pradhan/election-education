@@ -1,0 +1,23 @@
+{
+  "name": "votewise-functions",
+  "description": "VoteWise Cloud Functions — AI Chatbot and Eligibility Checker",
+  "version": "1.0.0",
+  "main": "src/index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "test": "jest --coverage"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0",
+    "@google/generative-ai": "^0.21.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  },
+  "private": true
+}

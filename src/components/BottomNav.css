@@ -1,0 +1,76 @@
+/* BottomNav Styles */
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--color-border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 var(--space-2);
+  z-index: var(--z-fixed);
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--color-text-tertiary);
+  transition: all var(--transition-fast);
+  position: relative;
+  min-width: 56px;
+  min-height: 48px;
+  justify-content: center;
+}
+
+.bottom-nav-item:hover {
+  color: var(--color-primary);
+}
+
+.bottom-nav-item.active {
+  color: var(--color-primary);
+}
+
+.bottom-nav-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  transition: transform var(--transition-spring);
+}
+
+.bottom-nav-item.active .bottom-nav-icon {
+  transform: scale(1.15);
+}
+
+.bottom-nav-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.bottom-nav-indicator {
+  position: absolute;
+  top: 4px;
+  width: 28px;
+  height: 3px;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  animation: scaleIn 0.2s ease-out;
+}
+
+/* Hide on desktop */
+@media (min-width: 769px) {
+  .bottom-nav {
+    display: none;
+  }
+}
