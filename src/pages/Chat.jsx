@@ -10,10 +10,10 @@ import { VALIDATION, ROUTES } from '../utils/constants';
 import './Chat.css';
 
 /**
- * @param {{ user: object|null, onSignIn: Function }} props
+ * @param {{ user: object|null, userData: object|null, onSignIn: Function }} props
  */
-export default function Chat({ user, onSignIn }) {
-  const { messages, isLoading, error, sendMessage, clearChat, messagesEndRef } = useChat(user);
+export default function Chat({ user, userData, onSignIn }) {
+  const { messages, isLoading, error, sendMessage, clearChat, messagesEndRef } = useChat(user, userData);
   const [input, setInput] = useState('');
   const inputRef = useRef(null);
 
@@ -119,7 +119,7 @@ export default function Chat({ user, onSignIn }) {
                 )}
                 <div className="chat-bubble-content">
                   <div className="chat-bubble-text" dangerouslySetInnerHTML={{
-                    __html: formatMessage(msg.content)
+                    __html: formatMessage(sanitizeHtml(msg.content))
                   }} />
                 </div>
               </div>
@@ -185,9 +185,27 @@ export default function Chat({ user, onSignIn }) {
 }
 
 /**
- * Formats messages with basic markdown-like transformations
+ * Sanitizes HTML entities in a string to prevent XSS.
+ * Applied to AI responses before formatting to ensure no malicious
+ * HTML can be injected through the AI's output.
  * @param {string} text
- * @returns {string} HTML string
+ * @returns {string} Sanitized text
+ */
+function sanitizeHtml(text) {
+  if (typeof text !== 'string') return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+/**
+ * Formats messages with basic markdown-like transformations.
+ * Only applied AFTER sanitization to ensure safe rendering.
+ * @param {string} text - Sanitized text
+ * @returns {string} HTML string with formatting
  */
 function formatMessage(text) {
   return text

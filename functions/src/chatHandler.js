@@ -96,7 +96,7 @@ const chatHandler = onCall(
     }
 
     const uid = request.auth.uid;
-    const { userMessage, history } = request.data;
+    const { userMessage, history, userContext } = request.data;
 
     /* Input validation */
     if (!userMessage || typeof userMessage !== 'string') {
@@ -117,6 +117,29 @@ const chatHandler = onCall(
         'invalid-argument',
         'Message must be under 500 characters.'
       );
+    }
+
+    /**
+     * Build a context-aware system prompt.
+     * If the user has completed an eligibility check or is a first-time voter,
+     * that context is injected into the system prompt so Gemini can tailor
+     * its responses accordingly.
+     */
+    let dynamicPrompt = SYSTEM_PROMPT;
+    if (userContext && typeof userContext === 'object') {
+      const contextParts = [];
+      if (userContext.isFirstTimeVoter) {
+        contextParts.push('The user is a first-time voter. Be extra clear and beginner-friendly.');
+      }
+      if (userContext.eligibilityResult) {
+        const { eligible, inputs } = userContext.eligibilityResult;
+        if (inputs?.age) contextParts.push(`The user is ${inputs.age} years old.`);
+        if (inputs?.residenceStatus === 'nri') contextParts.push('The user is an NRI.');
+        if (!eligible) contextParts.push('The user is currently not eligible to vote.');
+      }
+      if (contextParts.length > 0) {
+        dynamicPrompt += '\n\nUser context: ' + contextParts.join(' ');
+      }
     }
 
     /* Rate limit check */
@@ -141,7 +164,7 @@ const chatHandler = onCall(
       const genAI = new GoogleGenerativeAI(apiKey);
       const model = genAI.getGenerativeModel({
         model: 'gemini-1.5-pro',
-        systemInstruction: SYSTEM_PROMPT,
+        systemInstruction: dynamicPrompt,
         safetySettings: [
           { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
           { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },

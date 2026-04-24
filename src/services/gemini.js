@@ -1,26 +1,35 @@
 /**
- * Gemini AI Service (Client-side)
- * 
- * In production, the Gemini API is called via Cloud Functions only.
- * This service handles client-side communication with the chat Cloud Function.
- * For demo/development, it can also call the Gemini API directly.
+ * Gemini AI Chat Service
+ *
+ * Handles communication with the AI election assistant.
+ * In production, all Gemini API calls are routed through Firebase Cloud Functions
+ * to keep the API key server-side only.
+ * In demo/offline mode (no API key configured), returns curated static responses.
+ *
+ * Google Service: Gemini 1.5 Pro via Cloud Functions (firebase-functions/v2)
  */
 
 import { CHATBOT_SYSTEM_PROMPT, VALIDATION } from '../utils/constants';
 import { validateChatMessage, sanitizeInput } from '../utils/validators';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getAuth } from 'firebase/auth';
+import app from './firebase';
+
+/** Firebase Cloud Functions reference — initialized once and reused */
+const functions = getFunctions(app);
+const chatCallable = httpsCallable(functions, 'chatHandler');
 
 /**
- * Sends a message to the Gemini-powered chat backend.
- * In production, this calls a Firebase Cloud Function.
- * For demo mode, it uses the Google Generative AI SDK directly.
- * 
+ * Sends a message to the Gemini-powered chat backend via Cloud Functions.
+ * Falls back to demo responses when the Cloud Function is unavailable.
+ *
  * @param {string} userMessage - The user's message
  * @param {Array} history - Previous messages in the conversation
- * @param {string|null} authToken - Firebase auth token
+ * @param {object|null} userContext - Optional user context (eligibility, first-time voter status)
  * @returns {Promise<string>} The AI response
  */
-export async function sendChatMessage(userMessage, history = [], authToken = null) {
-  /* Validate input */
+export async function sendChatMessage(userMessage, history = [], userContext = null) {
+  /* Validate input before sending */
   const validation = validateChatMessage(userMessage);
   if (!validation.valid) {
     throw new Error(validation.error);
@@ -28,108 +37,72 @@ export async function sendChatMessage(userMessage, history = [], authToken = nul
 
   const sanitizedMessage = sanitizeInput(userMessage);
 
-  /**
-   * Demo mode: Uses the Google Generative AI SDK directly.
-   * In production, replace this with a Cloud Function call.
-   */
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const auth = getAuth(app);
+    const currentUser = auth.currentUser;
 
-    if (!apiKey || apiKey === 'demo-api-key') {
-      /* Return a demo response when no API key is configured */
-      return getDemoResponse(sanitizedMessage);
+    if (!currentUser) {
+      /* If user is not authenticated, use demo responses */
+      return getDemoResponse(sanitizedMessage, userContext);
     }
 
     /**
-     * Call Gemini API via REST endpoint.
-     * In production, this should be a Cloud Function callable instead.
+     * Call chatHandler Cloud Function.
+     * The function handles Gemini API calls server-side, keeping the API key secure.
+     * It also performs rate limiting and saves chat history to Firestore.
      */
-    const contents = buildConversationContents(sanitizedMessage, history);
+    const result = await chatCallable({
+      userMessage: sanitizedMessage,
+      history: history.map((msg) => ({ role: msg.role, content: msg.content })),
+      userContext: userContext || {},
+    });
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: {
-            parts: [{ text: CHATBOT_SYSTEM_PROMPT }],
-          },
-          safetySettings: [
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 512,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Gemini API error:', errorData);
-      throw new Error('Failed to get response from AI assistant.');
-    }
-
-    const data = await response.json();
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      'I apologize, I could not generate a response. Please try again.';
-
-    return reply;
+    return result.data.reply;
   } catch (error) {
     console.error('Chat service error:', error);
-    if (error.message.includes('Failed to get response')) {
-      throw error;
+
+    /* Parse Cloud Function error codes into user-friendly messages */
+    if (error.code === 'functions/unauthenticated') {
+      throw new Error('Please sign in to use the chat.');
     }
-    throw new Error('Unable to connect to the AI assistant. Please try again later.');
+    if (error.code === 'functions/resource-exhausted') {
+      throw new Error('You have reached your hourly message limit. Please try again later.');
+    }
+    if (error.code === 'functions/invalid-argument') {
+      throw new Error(error.message || 'Invalid message. Please try again.');
+    }
+
+    /* Fallback to demo responses on any Cloud Function failure (e.g., not deployed, network error) */
+    console.warn('Cloud Function unavailable, using demo response.');
+    return getDemoResponse(sanitizedMessage, userContext);
   }
 }
 
 /**
- * Builds the conversation contents array for Gemini API
- * @param {string} currentMessage
- * @param {Array} history
- * @returns {Array}
+ * Returns a context-aware demo response when Cloud Functions are unavailable.
+ * Responses are matched based on keyword analysis of the user's message and
+ * personalized using any available user context (e.g., eligibility results).
+ *
+ * @param {string} message - Sanitized user message
+ * @param {object|null} userContext - User context for personalization
+ * @returns {string} A curated response
  */
-function buildConversationContents(currentMessage, history) {
-  const contents = [];
-
-  /* Add conversation history */
-  for (const msg of history) {
-    contents.push({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }],
-    });
-  }
-
-  /* Add current user message */
-  contents.push({
-    role: 'user',
-    parts: [{ text: currentMessage }],
-  });
-
-  return contents;
-}
-
-/**
- * Returns a demo response when no API key is configured.
- * Provides realistic responses for common election queries.
- * @param {string} message
- * @returns {string}
- */
-function getDemoResponse(message) {
+function getDemoResponse(message, userContext = null) {
   const lowerMsg = message.toLowerCase();
 
+  /* Build a context-aware greeting prefix when user context is available */
+  let contextPrefix = '';
+  if (userContext?.eligibilityResult) {
+    const { eligible, inputs } = userContext.eligibilityResult;
+    if (!eligible && inputs?.age < 18) {
+      contextPrefix = `Since you're ${inputs.age} years old, you'll be eligible to vote in ${18 - inputs.age} year${18 - inputs.age > 1 ? 's' : ''}. In the meantime, here's some useful information:\n\n`;
+    } else if (eligible && inputs?.residenceStatus === 'nri') {
+      contextPrefix = `As an NRI voter, here's what's relevant to you:\n\n`;
+    }
+  }
+
   if (lowerMsg.includes('id') || lowerMsg.includes('document') || lowerMsg.includes('identity')) {
-    return `📋 **Accepted Photo ID Documents at Polling Booth:**
+    return `${contextPrefix}📋 **Accepted Photo ID Documents at Polling Booth:**
 
 • Voter ID Card (EPIC) — most preferred
 • Aadhaar Card
@@ -144,7 +117,7 @@ function getDemoResponse(message) {
   }
 
   if (lowerMsg.includes('register') || lowerMsg.includes('registration') || lowerMsg.includes('enroll')) {
-    return `📝 **How to Register as a Voter:**
+    return `${contextPrefix}📝 **How to Register as a Voter:**
 
 1. **Online:** Visit [nvsp.in](https://www.nvsp.in) and fill Form 6
 2. **Offline:** Visit your nearest ERO (Electoral Registration Officer) office
@@ -159,7 +132,7 @@ function getDemoResponse(message) {
   }
 
   if (lowerMsg.includes('evm') || lowerMsg.includes('machine') || lowerMsg.includes('electronic')) {
-    return `🗳️ **About Electronic Voting Machines (EVMs):**
+    return `${contextPrefix}🗳️ **About Electronic Voting Machines (EVMs):**
 
 • EVMs are standalone, battery-operated devices
 • Each EVM can record up to 2,000 votes
@@ -176,7 +149,7 @@ function getDemoResponse(message) {
   }
 
   if (lowerMsg.includes('nota') || lowerMsg.includes('none of the above')) {
-    return `🚫 **About NOTA (None of the Above):**
+    return `${contextPrefix}🚫 **About NOTA (None of the Above):**
 
 • NOTA is always the **last option** on the EVM ballot unit
 • It was introduced by the Supreme Court in September 2013
@@ -188,7 +161,7 @@ function getDemoResponse(message) {
   }
 
   if (lowerMsg.includes('booth') || lowerMsg.includes('polling') || lowerMsg.includes('station')) {
-    return `🏛️ **Polling Booth Procedure:**
+    return `${contextPrefix}🏛️ **Polling Booth Procedure:**
 
 1. **Queue up** at your designated polling station
 2. **Show your ID** to the polling officer
@@ -205,7 +178,19 @@ function getDemoResponse(message) {
 💡 If you're in the queue before 6 PM, you **will** be allowed to vote.`;
   }
 
-  return `🗳️ **Welcome to VoteWise!**
+  if (lowerMsg.includes('eligible') || lowerMsg.includes('age') || lowerMsg.includes('can i vote')) {
+    if (userContext?.eligibilityResult) {
+      const { eligible, reason, details } = userContext.eligibilityResult;
+      return `Based on the eligibility check you completed earlier:\n\n${eligible ? '✅' : '❌'} **${reason}**\n\n${details}\n\nWould you like to know more about the voter registration process or what documents you'll need?`;
+    }
+    return `To check your voter eligibility, you need to be:\n\n• 🇮🇳 An **Indian citizen**\n• 🎂 At least **18 years old** on the qualifying date (January 1st)\n• 📍 A **resident** of the constituency where you want to vote\n\nUse our **Eligibility Checker** tool for a quick check, or ask me specific questions!`;
+  }
+
+  /* Default welcome message — personalized if context is available */
+  const userName = userContext?.displayName?.split(' ')[0];
+  const greeting = userName ? `Hello, ${userName}! ` : '';
+
+  return `🗳️ **${greeting}Welcome to VoteWise!**
 
 I can help you with:
 • **Voter Registration** — How to register and required documents

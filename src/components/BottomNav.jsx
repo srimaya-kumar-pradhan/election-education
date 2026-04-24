@@ -33,7 +33,9 @@ export default function BottomNav() {
             aria-label={item.label}
             aria-current={isActive ? 'page' : undefined}
           >
-            <span className="bottom-nav-icon" aria-hidden="true">{item.icon}</span>
+            <div className="bottom-nav-icon-wrap">
+              <span className="bottom-nav-icon" aria-hidden="true">{item.icon}</span>
+            </div>
             <span className="bottom-nav-label">{item.label}</span>
             {isActive && <span className="bottom-nav-indicator" aria-hidden="true" />}
           </Link>

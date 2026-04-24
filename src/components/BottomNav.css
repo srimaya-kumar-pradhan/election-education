@@ -1,4 +1,4 @@
-/* BottomNav Styles */
+/* BottomNav Styles — Civic Clarity Design System */
 
 .bottom-nav {
   position: fixed;
@@ -6,10 +6,10 @@
   left: 0;
   right: 0;
   height: var(--bottom-nav-height);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(249, 249, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--color-border-light);
+  box-shadow: 0 -1px 0 var(--surface-container);
   display: flex;
   align-items: center;
   justify-content: space-around;
@@ -25,7 +25,7 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg);
   text-decoration: none;
-  color: var(--color-text-tertiary);
+  color: var(--outline);
   transition: all var(--transition-fast);
   position: relative;
   min-width: 56px;
@@ -34,11 +34,18 @@
 }
 
 .bottom-nav-item:hover {
-  color: var(--color-primary);
+  color: var(--primary-container);
+  background: rgba(0, 91, 192, 0.04);
 }
 
 .bottom-nav-item.active {
-  color: var(--color-primary);
+  color: var(--primary-container);
+}
+
+.bottom-nav-item.active .bottom-nav-icon-wrap {
+  background: var(--primary-fixed);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
 }
 
 .bottom-nav-icon {
@@ -47,15 +54,21 @@
   transition: transform var(--transition-spring);
 }
 
+.bottom-nav-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-base);
+}
+
 .bottom-nav-item.active .bottom-nav-icon {
-  transform: scale(1.15);
+  transform: scale(1.1);
 }
 
 .bottom-nav-label {
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .bottom-nav-indicator {
@@ -63,7 +76,7 @@
   top: 4px;
   width: 28px;
   height: 3px;
-  background: var(--color-primary);
+  background: linear-gradient(90deg, var(--primary), var(--primary-container));
   border-radius: var(--radius-full);
   animation: scaleIn 0.2s ease-out;
 }

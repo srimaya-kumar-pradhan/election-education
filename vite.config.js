@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
@@ -12,11 +12,16 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/analytics'],
-          router: ['react-router-dom'],
+        manualChunks(id) {
+          if (id.includes('firebase')) return 'firebase';
+          if (id.includes('react-router-dom')) return 'router';
         },
       },
     },
+  },
+  test: {
+    include: ['tests/**/*.test.js'],
+    environment: 'node',
+    globals: true,
   },
 });

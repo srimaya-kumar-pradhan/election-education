@@ -6,10 +6,10 @@
   left: 0;
   right: 0;
   height: var(--nav-height);
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(249, 249, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--color-border-light);
+  box-shadow: 0 1px 0 var(--surface-container);
   z-index: var(--z-fixed);
   transition: background var(--transition-base);
 }
