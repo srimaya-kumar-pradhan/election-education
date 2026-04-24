@@ -9,7 +9,7 @@ const { initializeApp } = require('firebase-admin/app');
 
 try {
   initializeApp();
-} catch (e) {
+} catch (_e) {
   /* Already initialized */
 }
 

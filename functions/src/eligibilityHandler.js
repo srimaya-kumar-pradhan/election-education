@@ -4,12 +4,12 @@
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 const { initializeApp } = require('firebase-admin/app');
 
 try {
   initializeApp();
-} catch (e) {
+} catch (_e) {
   /* Already initialized */
 }
 

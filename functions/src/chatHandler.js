@@ -17,7 +17,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 /* Initialize Firebase Admin (idempotent) */
 try {
   initializeApp();
-} catch (e) {
+} catch (_e) {
   /* Already initialized */
 }
 

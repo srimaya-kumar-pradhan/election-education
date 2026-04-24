@@ -11,13 +11,13 @@ const { initializeApp } = require('firebase-admin/app');
 
 try {
   initializeApp();
-} catch (e) {
+} catch (_e) {
   /* Already initialized */
 }
 
 const db = getFirestore();
 
-exports.notificationScheduler = onSchedule('every day 09:00', async (event) => {
+const notificationScheduler = onSchedule('every day 09:00', async () => {
   try {
     const now = new Date();
     const twoDaysFromNow = new Date();
@@ -72,3 +72,5 @@ exports.notificationScheduler = onSchedule('every day 09:00', async (event) => {
     console.error('Error sending push notifications:', error);
   }
 });
+
+module.exports = { notificationScheduler };
