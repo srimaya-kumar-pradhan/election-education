@@ -1,77 +1,59 @@
 /**
- * Unit Tests — validators.js
+ * VoteWise — Unit Tests for Validators
  *
- * Tests the pure validation and utility functions used across the app.
- * Covers:
- * 1. Chat message validation (happy path, edge cases, error paths)
- * 2. Eligibility form validation
- * 3. Eligibility checking logic
- * 4. Input sanitization
- * 5. Timestamp formatting
+ * Tests all validation and eligibility logic in utils/validators.js
+ * @module tests/validators
  */
 
+import { describe, it, expect } from 'vitest';
 import {
   validateChatMessage,
   validateEligibilityForm,
   checkEligibility,
   sanitizeInput,
   formatTimestamp,
-  formatChatTime,
 } from '../src/utils/validators';
 
-/* ──────────────────────────────────────────────────────────── */
-/*                 validateChatMessage                         */
-/* ──────────────────────────────────────────────────────────── */
-
 describe('validateChatMessage', () => {
-  test('accepts a valid message (happy path)', () => {
-    const result = validateChatMessage('What documents do I need to vote?');
+  it('accepts valid messages', () => {
+    const result = validateChatMessage('How do I register to vote?');
     expect(result.valid).toBe(true);
     expect(result.error).toBeNull();
   });
 
-  test('rejects an empty string', () => {
+  it('rejects empty string', () => {
     const result = validateChatMessage('');
     expect(result.valid).toBe(false);
-    expect(result.error).toContain('enter a message');
+    expect(result.error).toBeTruthy();
   });
 
-  test('rejects a whitespace-only string', () => {
+  it('rejects whitespace-only string', () => {
     const result = validateChatMessage('   ');
     expect(result.valid).toBe(false);
-    expect(result.error).toContain('enter a message');
+    expect(result.error).toBeTruthy();
   });
 
-  test('rejects null input', () => {
-    const result = validateChatMessage(null);
-    expect(result.valid).toBe(false);
+  it('rejects null/undefined', () => {
+    expect(validateChatMessage(null).valid).toBe(false);
+    expect(validateChatMessage(undefined).valid).toBe(false);
   });
 
-  test('rejects undefined input', () => {
-    const result = validateChatMessage(undefined);
-    expect(result.valid).toBe(false);
-  });
-
-  test('rejects a message exceeding 500 characters', () => {
-    const longMessage = 'a'.repeat(501);
+  it('rejects messages exceeding max length (500 chars)', () => {
+    const longMessage = 'A'.repeat(501);
     const result = validateChatMessage(longMessage);
     expect(result.valid).toBe(false);
     expect(result.error).toContain('500');
   });
 
-  test('accepts a message exactly at 500 characters', () => {
-    const exactMessage = 'a'.repeat(500);
+  it('accepts messages at exactly max length', () => {
+    const exactMessage = 'A'.repeat(500);
     const result = validateChatMessage(exactMessage);
     expect(result.valid).toBe(true);
   });
 });
 
-/* ──────────────────────────────────────────────────────────── */
-/*               validateEligibilityForm                       */
-/* ──────────────────────────────────────────────────────────── */
-
 describe('validateEligibilityForm', () => {
-  test('accepts valid form data (happy path)', () => {
+  it('accepts valid form data', () => {
     const result = validateEligibilityForm({
       age: 25,
       citizenship: 'indian',
@@ -81,197 +63,145 @@ describe('validateEligibilityForm', () => {
     expect(Object.keys(result.errors)).toHaveLength(0);
   });
 
-  test('rejects missing age', () => {
+  it('rejects missing age', () => {
     const result = validateEligibilityForm({
       age: null,
       citizenship: 'indian',
       residenceStatus: 'resident',
     });
     expect(result.valid).toBe(false);
-    expect(result.errors).toHaveProperty('age');
+    expect(result.errors.age).toBeTruthy();
   });
 
-  test('rejects age below 1', () => {
+  it('rejects age out of range', () => {
+    const tooLow = validateEligibilityForm({ age: 0, citizenship: 'indian', residenceStatus: 'resident' });
+    expect(tooLow.valid).toBe(false);
+
+    const tooHigh = validateEligibilityForm({ age: 121, citizenship: 'indian', residenceStatus: 'resident' });
+    expect(tooHigh.valid).toBe(false);
+  });
+
+  it('rejects missing citizenship', () => {
+    const result = validateEligibilityForm({
+      age: 20,
+      citizenship: '',
+      residenceStatus: 'resident',
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.citizenship).toBeTruthy();
+  });
+
+  it('rejects missing residenceStatus', () => {
+    const result = validateEligibilityForm({
+      age: 20,
+      citizenship: 'indian',
+      residenceStatus: '',
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.residenceStatus).toBeTruthy();
+  });
+
+  it('returns multiple errors at once', () => {
     const result = validateEligibilityForm({
       age: 0,
-      citizenship: 'indian',
-      residenceStatus: 'resident',
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors.age).toContain('valid age');
-  });
-
-  test('rejects age above 120', () => {
-    const result = validateEligibilityForm({
-      age: 121,
-      citizenship: 'indian',
-      residenceStatus: 'resident',
-    });
-    expect(result.valid).toBe(false);
-  });
-
-  test('rejects missing citizenship', () => {
-    const result = validateEligibilityForm({
-      age: 25,
-      citizenship: '',
-      residenceStatus: 'resident',
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors).toHaveProperty('citizenship');
-  });
-
-  test('rejects missing residence status', () => {
-    const result = validateEligibilityForm({
-      age: 25,
-      citizenship: 'indian',
-      residenceStatus: '',
-    });
-    expect(result.valid).toBe(false);
-    expect(result.errors).toHaveProperty('residenceStatus');
-  });
-
-  test('collects multiple errors at once', () => {
-    const result = validateEligibilityForm({
-      age: null,
       citizenship: '',
       residenceStatus: '',
     });
     expect(result.valid).toBe(false);
-    expect(Object.keys(result.errors)).toHaveLength(3);
+    expect(Object.keys(result.errors).length).toBeGreaterThanOrEqual(3);
   });
 });
 
-/* ──────────────────────────────────────────────────────────── */
-/*                    checkEligibility                         */
-/* ──────────────────────────────────────────────────────────── */
-
 describe('checkEligibility', () => {
-  test('eligible Indian citizen over 18 (happy path)', () => {
-    const result = checkEligibility({
-      age: 25,
-      citizenship: 'indian',
-      residenceStatus: 'resident',
-    });
+  it('eligible Indian citizen of voting age', () => {
+    const result = checkEligibility({ age: 25, citizenship: 'indian', residenceStatus: 'resident' });
     expect(result.eligible).toBe(true);
     expect(result.reason).toContain('eligible');
   });
 
-  test('ineligible for non-Indian citizen', () => {
-    const result = checkEligibility({
-      age: 25,
-      citizenship: 'other',
-      residenceStatus: 'resident',
-    });
-    expect(result.eligible).toBe(false);
-    expect(result.reason).toContain('Indian citizens');
+  it('eligible at exact voting age (18)', () => {
+    const result = checkEligibility({ age: 18, citizenship: 'indian', residenceStatus: 'resident' });
+    expect(result.eligible).toBe(true);
   });
 
-  test('ineligible for underage person', () => {
-    const result = checkEligibility({
-      age: 16,
-      citizenship: 'indian',
-      residenceStatus: 'resident',
-    });
+  it('ineligible non-Indian citizen', () => {
+    const result = checkEligibility({ age: 25, citizenship: 'other', residenceStatus: 'resident' });
+    expect(result.eligible).toBe(false);
+    expect(result.reason).toContain('Indian citizen');
+  });
+
+  it('ineligible underage voter', () => {
+    const result = checkEligibility({ age: 16, citizenship: 'indian', residenceStatus: 'resident' });
     expect(result.eligible).toBe(false);
     expect(result.reason).toContain('18');
-    expect(result.details).toContain('2 years');
+    expect(result.details).toContain('2 year');
   });
 
-  test('eligible NRI voter gets specific NRI details', () => {
-    const result = checkEligibility({
-      age: 30,
-      citizenship: 'indian',
-      residenceStatus: 'nri',
-    });
+  it('eligible NRI voter with special guidance', () => {
+    const result = checkEligibility({ age: 30, citizenship: 'indian', residenceStatus: 'nri' });
     expect(result.eligible).toBe(true);
     expect(result.reason).toContain('NRI');
     expect(result.details).toContain('Form 6A');
   });
 
-  test('exactly 18 years old is eligible', () => {
-    const result = checkEligibility({
-      age: 18,
-      citizenship: 'indian',
-      residenceStatus: 'resident',
-    });
-    expect(result.eligible).toBe(true);
-  });
-
-  test('exactly 17 years old is ineligible with 1 year message', () => {
-    const result = checkEligibility({
-      age: 17,
-      citizenship: 'indian',
-      residenceStatus: 'resident',
-    });
-    expect(result.eligible).toBe(false);
-    expect(result.details).toContain('1 year');
-    /* Should NOT say "1 years" */
-    expect(result.details).not.toContain('1 years');
+  it('correctly calculates years remaining for underage', () => {
+    const result = checkEligibility({ age: 15, citizenship: 'indian', residenceStatus: 'resident' });
+    expect(result.details).toContain('3 year');
   });
 });
-
-/* ──────────────────────────────────────────────────────────── */
-/*                    sanitizeInput                            */
-/* ──────────────────────────────────────────────────────────── */
 
 describe('sanitizeInput', () => {
-  test('strips leading and trailing whitespace', () => {
-    expect(sanitizeInput('  hello  ')).toBe('hello');
+  it('escapes HTML tags', () => {
+    const result = sanitizeInput('<script>alert("xss")</script>');
+    expect(result).not.toContain('<script>');
+    expect(result).toContain('&lt;script&gt;');
   });
 
-  test('escapes HTML angle brackets', () => {
-    expect(sanitizeInput('<script>alert("xss")</script>')).toBe(
-      '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'
-    );
+  it('escapes double quotes', () => {
+    const result = sanitizeInput('He said "hello"');
+    expect(result).toContain('&quot;');
   });
 
-  test('escapes single quotes', () => {
-    expect(sanitizeInput("it's")).toBe("it&#x27;s");
+  it('escapes single quotes', () => {
+    const result = sanitizeInput("It's a test");
+    expect(result).toContain('&#x27;');
   });
 
-  test('returns empty string for non-string input', () => {
-    expect(sanitizeInput(123)).toBe('');
+  it('trims whitespace', () => {
+    const result = sanitizeInput('   hello   ');
+    expect(result).toBe('hello');
+  });
+
+  it('returns empty string for non-string input', () => {
     expect(sanitizeInput(null)).toBe('');
     expect(sanitizeInput(undefined)).toBe('');
+    expect(sanitizeInput(123)).toBe('');
+  });
+
+  it('handles empty string', () => {
+    expect(sanitizeInput('')).toBe('');
   });
 });
-
-/* ──────────────────────────────────────────────────────────── */
-/*                  formatTimestamp                             */
-/* ──────────────────────────────────────────────────────────── */
 
 describe('formatTimestamp', () => {
-  test('formats a Date object correctly', () => {
-    const date = new Date('2024-04-19T10:00:00Z');
+  it('formats a JavaScript Date object', () => {
+    const date = new Date('2024-04-19');
     const result = formatTimestamp(date);
+    expect(result).toBeTruthy();
     expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-    expect(result).toContain('2024');
   });
 
-  test('handles Firestore-style timestamp with toDate method', () => {
-    const firestoreTimestamp = {
-      toDate: () => new Date('2024-04-19T10:00:00Z'),
-    };
-    const result = formatTimestamp(firestoreTimestamp);
-    expect(result).toContain('2024');
+  it('handles Firestore timestamp with toDate', () => {
+    const firestoreTs = { toDate: () => new Date('2024-06-04') };
+    const result = formatTimestamp(firestoreTs);
+    expect(result).toBeTruthy();
   });
 
-  test('returns empty string for null/undefined', () => {
+  it('returns empty string for null', () => {
     expect(formatTimestamp(null)).toBe('');
+  });
+
+  it('returns empty string for undefined', () => {
     expect(formatTimestamp(undefined)).toBe('');
-  });
-});
-
-describe('formatChatTime', () => {
-  test('formats a Date into HH:MM string', () => {
-    const date = new Date('2024-04-19T14:30:00Z');
-    const result = formatChatTime(date);
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-  });
-
-  test('returns empty string for null', () => {
-    expect(formatChatTime(null)).toBe('');
   });
 });

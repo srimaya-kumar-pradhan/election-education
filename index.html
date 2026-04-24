@@ -10,20 +10,61 @@
     <meta name="description" content="VoteWise helps Indian citizens understand elections, check eligibility, and navigate the voting process through an intelligent AI chatbot powered by Google Gemini." />
     <meta name="keywords" content="VoteWise, Indian elections, voter registration, voting guide, election assistant, AI chatbot, first-time voter" />
     <meta name="author" content="VoteWise" />
+    <meta name="robots" content="index, follow" />
     
     <!-- Open Graph -->
     <meta property="og:title" content="VoteWise — AI-Powered Election Assistant" />
     <meta property="og:description" content="Your smart guide to Indian elections. Check eligibility, learn voting procedures, and get answers from an AI assistant." />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://votewise-1a2d0.web.app" />
+    <meta property="og:site_name" content="VoteWise" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VoteWise — AI-Powered Election Assistant" />
+    <meta name="twitter:description" content="Your smart guide to Indian elections. AI-powered voter education." />
     
     <!-- Theme Color -->
     <meta name="theme-color" content="#1A73E8" />
+    <meta name="color-scheme" content="light" />
     
     <!-- Preload fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Structured Data (JSON-LD) for Google Search -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "VoteWise",
+      "description": "AI-powered election assistant for Indian voters. Check eligibility, learn voting procedures, and get answers from an AI chatbot.",
+      "url": "https://votewise-1a2d0.web.app",
+      "applicationCategory": "Civic Technology",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "INR"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "VoteWise"
+      }
+    }
+    </script>
   </head>
   <body>
+    <!-- Skip-to-content link for keyboard/screen reader accessibility (WCAG 2.1) -->
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
+    
+    <noscript>
+      <div style="padding:2rem;text-align:center;font-family:system-ui,sans-serif;">
+        <h1>VoteWise requires JavaScript</h1>
+        <p>Please enable JavaScript in your browser settings to use VoteWise, your AI-powered election assistant.</p>
+      </div>
+    </noscript>
+    
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

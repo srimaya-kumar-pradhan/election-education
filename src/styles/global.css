@@ -634,6 +634,32 @@ h6 { font-size: 1rem; letter-spacing: 0; }
   border-width: 0;
 }
 
+/* Skip-to-content link — visible only on keyboard focus */
+.skip-to-content {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary-container);
+  color: var(--on-primary);
+  padding: var(--space-3) var(--space-6);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  z-index: 9999;
+  transition: top var(--transition-fast);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.skip-to-content:focus {
+  top: 0;
+  outline: 3px solid var(--on-primary);
+  outline-offset: -3px;
+}
+
 /* Focus visible styles */
 :focus-visible {
   outline: 2px solid var(--primary-container);
