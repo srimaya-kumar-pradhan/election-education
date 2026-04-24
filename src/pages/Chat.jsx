@@ -15,11 +15,46 @@ import './Chat.css';
 export default function Chat({ user, userData, onSignIn }) {
   const { messages, isLoading, error, sendMessage, clearChat, messagesEndRef } = useChat(user, userData);
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     inputRef.current?.focus();
+    
+    // Initialize Speech Recognition if supported
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        setIsListening(false);
+      };
+      
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
   }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current?.start();
+      setIsListening(true);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -152,6 +187,15 @@ export default function Chat({ user, userData, onSignIn }) {
       {/* Input Bar */}
       <form className="chat-input-bar" onSubmit={handleSubmit}>
         <div className="chat-input-container">
+          <button
+            type="button"
+            className={`chat-mic-btn ${isListening ? 'listening' : ''}`}
+            onClick={toggleListening}
+            aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+            title="Voice input"
+          >
+            <span aria-hidden="true">{isListening ? '🔴' : '🎤'}</span>
+          </button>
           <input
             ref={inputRef}
             type="text"
@@ -160,7 +204,7 @@ export default function Chat({ user, userData, onSignIn }) {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask about elections, voting, registration..."
             maxLength={VALIDATION.MAX_MESSAGE_LENGTH}
-            disabled={isLoading}
+            disabled={isLoading || isListening}
             aria-label="Type your message"
             id="chat-input"
           />
@@ -170,7 +214,7 @@ export default function Chat({ user, userData, onSignIn }) {
           <button
             type="submit"
             className="chat-send-btn"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isLoading || isListening}
             aria-label="Send message"
             id="chat-send"
           >

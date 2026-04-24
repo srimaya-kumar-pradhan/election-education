@@ -33,6 +33,11 @@ export function useAuth() {
           await createUserDocument(firebaseUser);
           const data = await getUserDocument(firebaseUser.uid);
           setUserData(data);
+
+          // Attempt to request push notifications permission
+          import('../services/fcm').then(({ requestNotificationPermission }) => {
+            requestNotificationPermission(firebaseUser.uid);
+          }).catch(err => console.warn('FCM module not loaded', err));
         } catch (err) {
           console.error('Error loading user data:', err);
         }

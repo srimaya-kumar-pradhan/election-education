@@ -1,0 +1,436 @@
+=============================================================
+VOTEWISE – AI-POWERED ELECTION ASSISTANT (GOOGLE STACK)
+MASTER DEVELOPER PROMPT
+=============================================================
+
+You are an expert full-stack developer and AI engineer. Your task
+is to build "VoteWise" — a production-ready, AI-powered Election
+Assistant web application built exclusively on Google services.
+This application helps citizens — especially first-time voters —
+understand elections, check eligibility, and navigate the voting
+process through an intelligent chatbot and interactive UI.
+
+Your solution will be evaluated on:
+  • Code Quality       – structure, readability, maintainability
+  • Security           – safe and responsible implementation
+  • Efficiency         – optimal use of Google resources
+  • Testing            – functional validation at every layer
+  • Accessibility      – WCAG-compliant, inclusive design
+  • Google Integration – meaningful, non-trivial use of Google services
+
+=============================================================
+SECTION 1 — OBJECTIVE
+=============================================================
+
+Build a complete, deployable web application that:
+  1. Guides users through the election process step-by-step
+  2. Answers natural-language election queries via a Gemini-powered
+     chatbot (eligibility, documents, EVMs, booth procedures, etc.)
+  3. Provides first-time voter onboarding with visual walkthroughs
+  4. Displays election timelines, phases, and deadlines
+  5. Checks voter eligibility based on user-provided inputs
+  6. Delivers a searchable FAQ system backed by Firestore
+  7. Sends push notifications for key election dates (optional tier)
+
+=============================================================
+SECTION 2 — TECH STACK (GOOGLE SERVICES ONLY)
+=============================================================
+
+  Layer                 │ Google Service
+  ──────────────────────┼────────────────────────────────────
+  Frontend Hosting      │ Firebase Hosting
+  UI Framework          │ React (served via Firebase Hosting)
+  Authentication        │ Firebase Auth (Google Sign-In)
+  Backend Logic         │ Firebase Cloud Functions (Node.js 20)
+  Database              │ Cloud Firestore
+  AI Chatbot Engine     │ Gemini 1.5 Pro via Google AI Studio API
+  Push Notifications    │ Firebase Cloud Messaging (FCM)
+  Analytics             │ Firebase Analytics (GA4)
+  Voice Input (Bonus)   │ Google Cloud Speech-to-Text API
+  i18n (Bonus)          │ Gemini multilingual prompting
+
+All services must be initialized within a single Firebase project.
+Never use non-Google third-party services for core functionality.
+
+=============================================================
+SECTION 3 — ARCHITECTURE
+=============================================================
+
+  ┌─────────────────────────────────────────────────────────┐
+  │              React SPA (Firebase Hosting)               │
+  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
+  │  │ Chatbot  │ │ Journey  │ │Eligibility│ │ Timeline │  │
+  │  │   UI     │ │  Flow    │ │ Checker  │ │  Viewer  │  │
+  │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘  │
+  └───────┼────────────┼────────────┼─────────────┼────────┘
+          │            │            │             │
+          ▼            ▼            ▼             ▼
+  ┌─────────────────────────────────────────────────────────┐
+  │           Firebase Cloud Functions (Node.js)            │
+  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+  │  │ chatHandler  │  │ eligibility  │  │  faqFetcher  │  │
+  │  │  (Gemini)    │  │  Validator   │  │  (Firestore) │  │
+  │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  │
+  └─────────┼────────────────┼─────────────────┼───────────┘
+            ▼                ▼                 ▼
+  ┌──────────────┐   ┌───────────────┐  ┌─────────────────┐
+  │  Gemini API  │   │   Firestore   │  │  Firebase Auth  │
+  │ (AI Studio)  │   │  (Database)   │  │  (Google SSO)   │
+  └──────────────┘   └───────────────┘  └─────────────────┘
+
+=============================================================
+SECTION 4 — FIRESTORE DATA STRUCTURES
+=============================================================
+
+── Collection: `journeySteps`
+   Document ID: "step_01" … "step_N"
+   {
+     "id": "step_01",
+     "order": 1,
+     "title": "Check Registration",
+     "description": "Visit voters.eci.gov.in to verify your name
+                      in the electoral roll.",
+     "icon": "how_to_reg",
+     "nextStepId": "step_02",
+     "prevStepId": null,
+     "ctaLabel": "Check Now",
+     "ctaUrl": "https://voters.eci.gov.in"
+   }
+
+── Collection: `faqs`
+   Document ID: auto-generated
+   {
+     "question": "What photo ID documents are accepted at the booth?",
+     "answer": "Voter ID card, Aadhaar, Passport, Driving Licence,
+                MNREGA Job Card, PAN Card, or bank passbook with photo.",
+     "category": "documents",
+     "tags": ["ID", "booth", "documents"],
+     "order": 1
+   }
+
+── Collection: `timelinePhases`
+   Document ID: "phase_01" … "phase_N"
+   {
+     "phase": 1,
+     "label": "Notification of Election",
+     "date": "2024-03-01",
+     "description": "Election Commission issues official notification.",
+     "status": "completed" // "completed" | "active" | "upcoming"
+   }
+
+── Collection: `users` (created on first sign-in)
+   Document ID: Firebase UID
+   {
+     "uid": "abc123",
+     "email": "user@example.com",
+     "displayName": "Priya Sharma",
+     "isFirstTimeVoter": true,
+     "fcmToken": "<device_token>",
+     "eligibilityResult": null,
+     "createdAt": <Timestamp>
+   }
+
+── Collection: `chatHistory` (subcollection under `users`)
+   Document ID: auto-generated
+   {
+     "role": "user" | "model",
+     "content": "What documents do I need to vote?",
+     "timestamp": <Timestamp>
+   }
+
+=============================================================
+SECTION 5 — FEATURE IMPLEMENTATION GUIDE
+=============================================================
+
+─────────────────────────────────────────
+FEATURE 1 │ SMART CHATBOT (Core Feature)
+─────────────────────────────────────────
+
+Cloud Function: `chatHandler` (HTTPS Callable)
+
+  System prompt to inject before every user message:
+  ┌─────────────────────────────────────────────────────────┐
+  │ You are VoteWise, an expert, friendly, and neutral      │
+  │ election assistant for Indian voters. You only answer   │
+  │ questions related to elections, voting procedures,      │
+  │ voter registration, eligible documents, EVMs, NOTA,     │
+  │ election phases, and civic rights. For off-topic        │
+  │ questions, politely redirect the user to election       │
+  │ topics. Keep answers concise (under 150 words),         │
+  │ factual, and beginner-friendly. Use bullet points       │
+  │ where helpful. Never express political bias.            │
+  └─────────────────────────────────────────────────────────┘
+
+  Implementation steps:
+    a. Accept { userMessage, history[] } from client
+    b. Validate input — reject empty or >500 char messages
+    c. Reconstruct conversation history array for Gemini
+    d. Call Gemini 1.5 Pro via @google/generative-ai SDK
+    e. Return { reply: string } to client
+    f. Save both turns to Firestore `chatHistory` subcollection
+    g. Log token usage to Firebase Analytics custom event
+
+  Security:
+    • Require Firebase Auth token on every callable function
+    • Rate-limit: max 30 requests/user/hour (use Firestore counter)
+    • Sanitize all inputs server-side before sending to Gemini
+    • Never expose the Gemini API key on the client
+
+  Sample Cloud Function skeleton:
+  ─────────────────────────────────
+  exports.chatHandler = onCall(async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', ...);
+    const { userMessage, history } = request.data;
+    // Input validation
+    // Build Gemini message array with system prompt
+    // Call Gemini API
+    // Save to Firestore
+    // Return reply
+  });
+
+─────────────────────────────────────────
+FEATURE 2 │ GUIDED ELECTION JOURNEY
+─────────────────────────────────────────
+
+  UI Flow:
+    [Welcome Screen]
+         ↓
+    "Are you registered to vote?" → [Yes] → Step: Find Booth
+                                  → [No]  → Step: Registration Guide
+         ↓
+    Each step card shows:
+      • Icon  •  Title  •  Description  •  CTA button
+      •  Progress bar (step N of Total)
+         ↓
+    [Completion Screen] — Share / Download Summary
+
+  Implementation:
+    a. Fetch `journeySteps` collection ordered by `order` field
+    b. Store current step in React local state
+    c. Branch logic handled client-side using `nextStepId`
+    d. Track completion event in Firebase Analytics
+
+─────────────────────────────────────────
+FEATURE 3 │ FIRST-TIME VOTER MODE
+─────────────────────────────────────────
+
+  Trigger: `isFirstTimeVoter === true` in user Firestore doc
+           OR user self-selects on onboarding screen
+
+  Show:
+    • Animated card carousel: "What to expect at the polling booth"
+    • Steps: Arrive → Show ID → Ink mark → EVM → VVPAT confirmation
+    • Each card: illustration + 2-line plain-English description
+    • Accessible alt text on all images (WCAG 2.1 AA)
+    • "Ask the chatbot" button pre-filled with context
+
+─────────────────────────────────────────
+FEATURE 4 │ ELIGIBILITY CHECKER
+─────────────────────────────────────────
+
+  Cloud Function: `checkEligibility` (HTTPS Callable)
+
+  Input form fields:
+    • Age (number input, min 1, max 120)
+    • Citizenship (dropdown: Indian Citizen / Other)
+    • Residence status (Indian resident / NRI)
+
+  Logic (server-side in Cloud Function):
+    if (citizenship !== "Indian" || age < 18) → NOT ELIGIBLE
+    else if (residenceStatus === "NRI")       → ELIGIBLE (special NRI rules apply)
+    else                                      → ELIGIBLE
+
+  Output card:
+    ✅ Eligible   →  Show next steps (register, find booth)
+    ❌ Not Eligible → Explain reason + show when they will qualify
+
+  Save result to `users/{uid}.eligibilityResult` in Firestore.
+
+─────────────────────────────────────────
+FEATURE 5 │ ELECTION TIMELINE VIEWER
+─────────────────────────────────────────
+
+  Data source: `timelinePhases` Firestore collection
+  (seed with static data at deploy time via admin script)
+
+  UI: Vertical timeline component
+    • Completed phases → green check icon
+    • Active phase     → pulsing highlight
+    • Upcoming phases  → greyed out
+    • Each entry: Phase name, date, short description
+    • Mobile responsive — collapses gracefully on small screens
+
+─────────────────────────────────────────
+FEATURE 6 │ FAQ SYSTEM
+─────────────────────────────────────────
+
+  a. Load all `faqs` documents from Firestore on component mount
+  b. Client-side search filter on `question` and `tags` fields
+  c. Category filter tabs: All / Documents / Registration / Booth / EVM
+  d. Accordion expand/collapse for each answer
+  e. "Still have questions? Ask the chatbot →" deep-link button
+
+─────────────────────────────────────────
+FEATURE 7 │ PUSH NOTIFICATIONS (Optional)
+─────────────────────────────────────────
+
+  a. Request FCM permission on user sign-in
+  b. Save FCM token to `users/{uid}.fcmToken` in Firestore
+  c. Cloud Function (scheduled): runs daily, queries Firestore for
+     upcoming phase dates within 48 hours, sends FCM notification
+  d. Notification payload:
+     { title: "VoteWise Reminder 🗳️",
+       body: "Voter registration deadline is tomorrow!",
+       data: { screen: "timeline" } }
+
+=============================================================
+SECTION 6 — UI/UX FLOW & DESIGN SYSTEM
+=============================================================
+
+  Navigation (bottom tab bar on mobile, sidebar on desktop):
+    🏠 Home  |  💬 Chat  |  🗺️ Journey  |  📋 FAQ  |  👤 Profile
+
+  Design principles:
+    • Primary color: Google Blue (#1A73E8)
+    • Success: #34A853  │  Error: #EA4335  │  Warning: #FBBC04
+    • Font: Google Sans or Roboto (both Google Fonts)
+    • Minimum touch target: 48×48px (mobile accessibility)
+    • All interactive elements keyboard-navigable (Tab order)
+    • Color contrast ratio ≥ 4.5:1 (WCAG AA)
+    • Aria-labels on all icon buttons
+    • Loading skeletons (not spinners) for async data
+    • Error boundaries with user-friendly fallback UI
+
+  Page structure:
+    /           → Landing: hero + feature cards + Sign-in CTA
+    /onboarding → First-time voter mode (gated post sign-in)
+    /chat       → Chatbot UI (message bubbles, input bar)
+    /journey    → Step-by-step guided flow
+    /eligibility→ Eligibility checker form + result
+    /timeline   → Election phase timeline
+    /faq        → Searchable FAQ accordion
+    /profile    → User info + notification settings
+
+=============================================================
+SECTION 7 — IMPLEMENTATION STEPS (IN ORDER)
+=============================================================
+
+  PHASE 1 — PROJECT SETUP
+    □ Create Firebase project; enable Firestore, Auth, Functions,
+      Hosting, Analytics, FCM
+    □ Bootstrap React app with Vite; configure firebase.js SDK
+    □ Set up Firebase Hosting with single-page app rewrites
+    □ Configure environment variables for Gemini API key
+      (store in Firebase Functions config, never in client)
+    □ Initialize ESLint + Prettier for code quality
+
+  PHASE 2 — AUTH & DATABASE
+    □ Implement Google Sign-In with Firebase Auth
+    □ Create Firestore security rules:
+        - Users can only read/write their own document
+        - `faqs`, `journeySteps`, `timelinePhases` are public read
+        - All writes to protected collections require auth
+    □ Seed Firestore with journeySteps, faqs, timelinePhases data
+    □ Write Firestore indexes for category + order queries
+
+  PHASE 3 — CORE FEATURES
+    □ Build chatHandler Cloud Function with Gemini integration
+    □ Build Chatbot UI component with streaming response display
+    □ Build Guided Journey flow with branching logic
+    □ Build Eligibility Checker (form + Cloud Function + result UI)
+    □ Build Timeline Viewer from Firestore data
+    □ Build FAQ system with search and category filters
+
+  PHASE 4 — POLISH & BONUS
+    □ First-Time Voter Mode carousel
+    □ FCM push notification scheduler
+    □ Firebase Analytics event tracking on key user actions
+    □ Voice input integration (Speech-to-Text API)
+    □ Multi-language support via Gemini prompt language detection
+
+  PHASE 5 — TESTING & DEPLOYMENT
+    □ Unit tests: Cloud Functions (Jest)
+    □ Integration tests: Firestore security rules (Firebase Emulator)
+    □ E2E tests: critical user flows (Playwright)
+    □ Lighthouse audit: target Performance ≥ 90, Accessibility = 100
+    □ Firebase deploy: `firebase deploy --only hosting,functions`
+
+=============================================================
+SECTION 8 — SECURITY REQUIREMENTS
+=============================================================
+
+  • Gemini API key: stored only in Firebase Functions environment
+    (`firebase functions:config:set gemini.key="..."`)
+    Never hardcoded, never shipped to client bundle
+  • Firestore rules: deny all by default; explicitly allow per route
+  • Input validation: all user inputs validated both client and server
+  • Rate limiting: Cloud Function call counts tracked in Firestore
+  • Auth required: all Cloud Functions check `request.auth`
+  • HTTPS only: Firebase Hosting enforces HTTPS automatically
+  • No PII logged: strip user-identifiable data from Analytics events
+  • Content moderation: Gemini safety settings set to BLOCK_MEDIUM_AND_ABOVE
+
+=============================================================
+SECTION 9 — CODE QUALITY STANDARDS
+=============================================================
+
+  • React: functional components + hooks only (no class components)
+  • Folder structure:
+      /src
+        /components   → reusable UI components
+        /pages        → route-level page components
+        /hooks        → custom hooks (useAuth, useFirestore, useChat)
+        /services     → firebase.js, gemini.js, fcm.js
+        /utils        → validators, formatters, constants
+        /styles       → global CSS + design tokens
+      /functions
+        /src          → Cloud Function handlers (one file per feature)
+  • JSDoc comments on all exported functions
+  • PropTypes or TypeScript interfaces on all components
+  • No hardcoded strings — use constants file for all labels
+  • Async/await with try-catch on every Firebase and API call
+  • Meaningful error messages surfaced to the user (not raw errors)
+
+=============================================================
+SECTION 10 — DEMO SCRIPT (EVALUATOR FLOW)
+=============================================================
+
+  1. Open app → Google Sign-In in one click
+  2. First-time voter onboarding carousel auto-launches
+  3. Navigate to Chat → type "What ID do I need to vote?"
+     → Gemini responds with accurate, formatted answer
+  4. Navigate to Journey → walk through registration → booth steps
+  5. Navigate to Eligibility → enter age 20, Indian citizen
+     → "✅ You are eligible to vote"
+  6. Navigate to Timeline → see current phase highlighted
+  7. Navigate to FAQ → search "EVM" → see instant filtered results
+  8. Show Firestore console → live data updating in real time
+  9. Show Firebase Analytics → events firing for each interaction
+
+Evaluator talking point:
+"VoteWise reduces voter confusion by combining Gemini's language
+understanding with Firebase's scalable, real-time infrastructure —
+making civic participation accessible to every Indian citizen,
+especially first-time voters, on any device."
+
+=============================================================
+OUTPUT EXPECTATIONS
+=============================================================
+
+Produce the following deliverables:
+  1. Complete React frontend source code (all components + pages)
+  2. Firebase Cloud Functions source code (all handlers)
+  3. Firestore security rules file (`firestore.rules`)
+  4. Firestore seed script (`scripts/seedFirestore.js`)
+  5. Firebase configuration files (`firebase.json`, `.firebaserc`)
+  6. README.md with: setup steps, env var list, deploy commands,
+     architecture diagram (ASCII), and feature checklist
+  7. Jest test files for all Cloud Functions
+  8. Playwright E2E test for chatbot + eligibility checker flows
+
+All code must be production-ready, commented, and deployable with
+`firebase deploy` from the project root without modification.
+
+=============================================================
+END OF PROMPT
+=============================================================
