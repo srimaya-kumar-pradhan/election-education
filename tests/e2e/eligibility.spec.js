@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Eligibility Checker E2E Flow', () => {
   test('Should perform basic eligibility check', async ({ page }) => {
@@ -13,8 +13,8 @@ test.describe('Eligibility Checker E2E Flow', () => {
     // auth by default unless mocked or via a special setup, we'll verify
     // the UI elements exist.
     
-    await expect(page.locator('#age')).toBeVisible();
-    await expect(page.locator('#citizenship')).toBeVisible();
-    await expect(page.locator('#resident')).toBeVisible();
+    await expect(page.locator('#age-input')).toBeVisible();
+    await expect(page.locator('#citizenship-input')).toBeVisible();
+    await expect(page.locator('#residence-input')).toBeVisible();
   });
 });

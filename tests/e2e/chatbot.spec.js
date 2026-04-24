@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Chatbot E2E Flow', () => {
   test('Should require sign in to access chat', async ({ page }) => {
