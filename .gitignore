@@ -1,43 +1,126 @@
-# Logs
-logs
-*.log
+# ═══════════════════════════════════════════════════
+# VoteWise .gitignore — Production Grade
+# NEVER remove entries from this file
+# ═══════════════════════════════════════════════════
+
+# ── Node & Package Managers ──────────────────────────
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
 
-node_modules
-functions/node_modules
-dist
+# ── Build Outputs ────────────────────────────────────
+dist/
+build/
+out/
+.output/
+dist-ssr/
+
+# ── Firebase Generated Files ─────────────────────────
+.firebase/
+firebase-debug.log
+firebase-debug.*.log*
+firestore-debug.log
+database-debug.log
+ui-debug.log
+.firebaserc.local
+
+# ═══════════════════════════════════════════════════
+# SECRETS — CRITICAL — NEVER COMMIT ANY OF THESE
+# ═══════════════════════════════════════════════════
 .env
 .env.local
-dist-ssr
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.staging
+.env.*.local
 *.local
+.envrc
 
-# Editor directories and files
+# Firebase Service Accounts (contain private keys)
+*service-account*.json
+*serviceAccount*.json
+*service_account*.json
+serviceAccountKey.json
+firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
+
+# API keys in any standalone file
+api-keys.json
+api_keys.json
+secrets.json
+credentials.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ── IDE & Editor Files ───────────────────────────────
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
+.eclipse/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+*.swo
+*~
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
-# Service Accounts / Credentials
+# ── Test Outputs ─────────────────────────────────────
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+*.lcov
+
+# ── Logs ────────────────────────────────────────────
+logs/
+*.log
+
+# ── Cache ────────────────────────────────────────────
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.tsbuildinfo
+*.tsbuildinfo
+
+# ── Temporary Files ──────────────────────────────────
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ── JSON files (except explicitly allowed) ───────────
+# This prevents any accidentally created JSON credential
+# files from being committed. Allowed files are listed below.
 *.json
 !package.json
 !package-lock.json
 !firebase.json
 !firestore.indexes.json
 !.vscode/extensions.json
-
-# Firebase
-.firebase/
-firebase-debug.log*
-firebase-debug.*.log*
-
-# Testing
-coverage/
+!functions/package.json
+!functions/package-lock.json
+!.firebaserc

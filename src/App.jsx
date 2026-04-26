@@ -76,9 +76,36 @@ export default function App() {
       <ToastProvider>
       <Router>
         <div className="app">
+          {/* Skip navigation — required for WCAG 2.1 AA compliance */}
+          <a
+            href="#main-content"
+            className="skip-nav-link"
+            aria-label="Skip to main content"
+            style={{
+              position: 'absolute',
+              top: '-48px',
+              left: '16px',
+              zIndex: 9999,
+              padding: '10px 18px',
+              background: '#1A73E8',
+              color: '#ffffff',
+              fontSize: '14px',
+              fontWeight: '600',
+              textDecoration: 'none',
+              borderRadius: '0 0 6px 6px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'top 0.15s ease',
+              outline: 'none',
+            }}
+            onFocus={(e) => { e.currentTarget.style.top = '0'; }}
+            onBlur={(e) => { e.currentTarget.style.top = '-48px'; }}
+          >
+            Skip to main content
+          </a>
+
           <Navbar user={user} onSignIn={signIn} onSignOut={signOut} />
 
-          <main id="main-content" role="main">
+          <main id="main-content" tabIndex="-1" role="main" aria-label="Main content">
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route
